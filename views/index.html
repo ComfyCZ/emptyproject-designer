@@ -7,7 +7,7 @@
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
 	<meta name="robots" content="all,follow" />
-	<link href="https://cdn.componentator.com/spa.min@18pro.css" rel="stylesheet" type="text/css" />
+	<link href="https://cdn.componentator.com/spa.min@18.css" rel="stylesheet" type="text/css" />
 	<script src="https://cdn.componentator.com/spa.min@18.js"></script>
 	<script src="https://designer.totaljs.com/compiler.min.js"></script>
 	@{import('default.css + ui.css', 'ui.js + helpers.js', 'favicon.ico')}
@@ -143,7 +143,7 @@
 			builder.url_actions = 'GET /api/actions/designer/';
 			builder.url_designs = 'GET /api/designs/{0}/';
 			builder.url_designs_save = 'POST /api/designs/';
-			builder.components = [];
+			builder.components = builder.components = ['https://cdn.componentator.com/designer/datatable@1.html','https://cdn.componentator.com/designer/dynamicvalue@1.html', 'https://cdn.componentator.com/designer/br@1.html', 'https://cdn.componentator.com/designer/button@1.html', 'https://cdn.componentator.com/designer/checkbox@1.html', 'https://cdn.componentator.com/designer/columns@1.html', 'https://cdn.componentator.com/designer/datagrid@1.html', 'https://cdn.componentator.com/designer/detail@1.html', 'https://cdn.componentator.com/designer/input@1.html', 'https://cdn.componentator.com/designer/label@1.html', 'https://cdn.componentator.com/designer/line@1.html', 'https://cdn.componentator.com/designer/tabs@1.html', 'https://cdn.componentator.com/designer/view@1.html', 'https://cdn.componentator.com/designer/panel@1.html', 'https://cdn.componentator.com/designer/radiobutton@1.html', 'https://cdn.componentator.com/designer/message@1.html', 'https://cdn.componentator.com/designer/toolbar@1.html'];
 			// builder.color = '#4285F4';
 		});
 
