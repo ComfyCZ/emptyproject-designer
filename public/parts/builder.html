@@ -1,0 +1,518 @@
+<div data---="LAZY designer"></div>
+
+<div id="builds"></div>
+
+<script>
+
+	var builder = {};
+
+	builder.element = $('#builds');
+	builder.view = '';
+	builder.largeform = '';
+	builder.form = '';
+
+	PLUGIN('builder', function(exports) {
+
+		var designs = {};
+		var sources;
+		var actions;
+		var throwerror = function(name, message) {
+			builder.onresponse()([{ name: '500', error: 'URL address wasn\'t bind binded correctly' }]);
+		};
+
+		var preparesettings = function(type, value) {
+			var output = [];
+			switch (type) {
+				case 'largeform':
+				case 'form':
+					output.push({ group: '@(General)', label: 'Width', name: 'width', type: 'number', value: value.width || 600 });
+					output.push({ group: '@(General)', label: '@(Title)', name: 'title', type: 'string', value: value.title || 'Create organization' });
+					output.push({ group: '@(General)', label: '@(Title for update)', name: 'title_update', type: 'string', value: value.title_update || 'Update organization' });
+					output.push({ group: '@(General)', label: '@(Icon)', name: 'icon', type: 'fontawesome', value: value.icon == null ? 'far fa-user-circle' : value.icon });
+					output.push({ group: '@(General)', label: '@(Validation)', name: 'validation', type: 'boolean', value: value.validation == null ? true : value.validation });
+					output.push({ group: '@(General)', label: '@(Submit button label)', name: 'button_submit', type: 'string', value: value.button_submit || 'SUBMIT' });
+					output.push({ group: '@(General)', label: '@(Cancel button label)', name: 'button_cancel', type: 'string', value: value.button_cancel || 'Cancel' });
+					output.push({ group: '@(General)', label: '@(Padding)', name: 'padding', type: 'boolean', value: value.padding == null ? true : value.padding });
+					output.push({ group: '@(General)', label: '@(Auto focus)', name: 'autofocus', type: 'boolean', value: value.autofocus == null ? true : value.autofocus });
+					output.push({ group: '@(General)', label: '@(ENTER submit)', name: 'enter', type: 'boolean', value: value.enter == null ? false : value.enter, icon: 'far fa-keyboard' });
+					output.push({ group: '@(General)', label: '@(Close with ESC)', name: 'closeesc', type: 'boolean', value: value.closeesc == null ? false : value.closeesc, icon: 'far fa-arrow-square-down' });
+					break;
+			}
+			return output.length ? output: null;
+		};
+
+		exports.load_sources = function(callback) {
+			var url = GET('?.url_sources');
+			AJAX(url, function(response) {
+				sources = response;
+				callback && callback(response);
+			});
+		};
+
+		exports.load_actions = function(callback) {
+			var url = GET('?.url_actions');
+			if (url) {
+				AJAX(url, function(response) {
+					actions = response;
+					callback && callback(response);
+				});
+			} else {
+				actions = [];
+				callback && callback(actions);
+			}
+		};
+
+		var load = function(build, payload, caller, component) {
+			exports.scope();
+
+			build.sources = sources;
+			build.payload = payload;
+			build.caller = GET('?.ui' + caller);
+			build.callercomponent = component;
+
+			if (build.initialized)
+				UPD(build.path + '.payload @type:init @reset');
+			else {
+				UPD(build.path + ' @type:init');
+				build.initialized = true;
+			}
+
+			// UPD(build.path + '.payload @reset');
+			SET(exports.name + '.' + build.type, build.path);
+			FIND('#' + build.id, function(com) {
+				com.load(build);
+				SETTER('loading/hide', 500);
+			});
+		};
+
+		var init = function(build, payload, caller, component) {
+
+			exports.scope();
+
+			var data = GET('?');
+			var path = exports.name + '.' + build.type;
+
+			build.path = 'builder.ui' + build.id;
+			REWRITE(build.path, build);
+
+			switch (build.type) {
+				case 'view':
+					data.element.append('<div data-bind="{0}__show:value===\'{1}\'" class="hidden"><div data---="compiler__{1}__$id:{2}"></div></div>'.format(path, build.path, build.id));
+					break;
+				case 'largeform':
+				case 'form':
+					prepare_largeform(exports.name, data, build, build.type);
+					break;
+			}
+
+			COMPILE();
+			setTimeout(load, 100, build, payload, caller, component);
+		};
+
+		exports.refresh = function(id, caller, component) {
+			if (designs[id])
+				load(designs[id], designs[id].initpayload, caller, component);
+		};
+
+		exports.clearcache = function() {
+			// internal compiler cache
+			W.abproccessed = false;
+			W.abcomponents = [];
+		};
+
+		exports.reload = function(id, path, caller) {
+
+			// EXEC('builder/load', $.action.substring(1), $.data, $.id, $.rebind ? $.component : null);
+			var build = designs[id];
+			if (build) {
+				var arr = FIND('compiler', true);
+				for (var i = 0; i < arr.length; i++) {
+					var com = arr[i];
+					if (com.path === build.path)
+						com.reload(path);
+				}
+			}
+
+		};
+
+		exports.load = function(id, payload, caller, component) {
+
+			SETTER('loading/show');
+
+			// Download dependencies
+			if (!sources) {
+				exports.scope();
+				exports.load_sources(function() {
+					exports.scope();
+					exports.load_actions(function() {
+						exports.scope();
+						exports.load(id, payload, caller, component);
+					});
+				});
+				return;
+			}
+
+			if (designs[id]) {
+				load(designs[id], payload, caller, component);
+				return;
+			}
+
+			exports.scope();
+
+			var model = GET('?');
+			AJAX(prepareurl(model.url_designs.format(id), builder.debug), model.onresponse(function(response) {
+
+				designs[id] = response;
+				response.color = model.color;
+				response.sources = sources;
+				response.actions = actions;
+				response.components = model.components;
+				response.caller = caller;
+				response.onresponse = model.onresponse;
+
+				// Initialization
+				response.oninit = function($) {
+
+					if ($.payload)
+						$.meta.initpayload = $.payload;
+
+					if ($.source) {
+						var url;
+						switch ($.source.type) {
+							case 'crud':
+								// open
+								if ($.payload) {
+									url = FUNC.compiler_args($.source.url.read, $.payload, response);
+									if (url.indexOf('{') === -1)
+										AJAX(url, model.onresponse($.next));
+									else
+										builder.onresponse()([{ name: '500', error: 'URL address wasn\'t bind binded correctly' }]);
+								} else {
+
+									var obj = {};
+
+									for (var i = 0; i < $.source.properties.length; i++) {
+										var prop = $.source.properties[i];
+										if (prop.def != null)
+											obj[prop.path] = prop.def;
+									}
+
+									$.meta.initpayload = null;
+									$.next(obj);
+								}
+								break;
+
+							case 'cl':
+								url = $.payload ? $.source.url.read : $.source.url.query;
+								if (url) {
+									url = FUNC.compiler_args(url, $.payload, response);
+									if (url.indexOf('{') === -1)
+										AJAX(url || EMPTYOBJECT, $.next);
+									else
+										throwerror('500', 'URL address wasn\'t bind binded correctly');
+								}
+								break;
+
+							case 'query':
+								var url = $.source.url[$.source.type];
+								if (url) {
+									url = FUNC.compiler_args(url, $.payload || EMPTYOBJECT, response);
+									if (url.indexOf('{') === -1)
+										AJAX(url, $.next);
+									else
+										throwerror('500', 'URL address wasn\'t bind binded correctly')
+								} else if ($.payload)
+									$.next($.payload);
+								break;
+
+							case 'detail':
+							case 'list':
+								var url = $.source.url[$.source.type];
+								if (url) {
+									url = FUNC.compiler_args(url, $.payload, response);
+									if (url.indexOf('{') === -1)
+										AJAX(url, model.onresponse($.next));
+									else
+										throwerror('500', 'URL address wasn\'t bind binded correctly')
+								} else if ($.payload)
+									$.next($.payload);
+								break;
+
+						}
+					} else
+						$.next();
+				};
+
+				init(designs[id], payload, caller, component);
+			}));
+		};
+
+		exports.largeform_reload = function(com) {
+			var compiler = com.find('.compiler').component();
+			WAIT(function() {
+				return compiler.settings
+			}, function() {
+				com.reconfigure({ title: compiler.payload && compiler.payload.id ? compiler.settings.title_update : compiler.settings.title });
+			});
+		};
+
+		exports.largeform_submit = function(hide, el) {
+
+			var compiler = el.find('.compiler').component();
+			var data = compiler.get();
+			var payload = compiler.payload;
+
+			if (data.source && data.source.type === 'crud') {
+				var pk = data.source.properties.findItem('type', 'uid');
+				var url = FUNC.compiler_args(data.source.url.create || data.source.url.update, null, data);
+				if (pk) {
+					var path = pk.path;
+					if (payload[path] && data.source.url.update)
+						url = FUNC.compiler_args(data.source.url.update, payload, data);
+				}
+
+				if (url.indexOf('{') !== -1) {
+					throwerror('500', 'URL address wasn\'t bind binded correctly');
+					return;
+				}
+
+				SETTER('loading/show');
+				compiler.reset();
+
+				AJAX(url, payload, builder.onresponse(function(response) {
+					hide();
+
+					if (data.callercomponent && data.callercomponent.onrebind)
+						data.callercomponent.onrebind();
+					else if (data.caller)
+						EXEC('?/refresh', data.caller.id);
+
+					SETTER('loading/hide', 1000);
+				}, data));
+
+			}
+		};
+
+		function prepareurl(url, debug) {
+			return url + (debug ? ((url.indexOf('?') === -1 ? '?' : '') + 'debug=1') : '');
+		}
+
+		exports.free = function(id) {
+			SETTER('#ui' + id + '/remove');
+			FREE();
+			delete designs[id];
+		};
+
+		exports.edit = function(id, debug) {
+
+			exports.scope();
+
+			var meta = GET('?');
+			var next = function(data) {
+
+				if (data.type === 'largeform' || data.type === 'form') {
+					data.ondesigner = '$.element.find(".content").css("width", $.settings.width || 700).tclass("padding", $.settings.padding);';
+					data.template = '<div style="width:600px;margin:50px auto;border:1px solid #E0E0E0" class="content padding"><main></main></div>';
+				} else
+					data.template = '<main></main>';
+
+				if (!data.design)
+					data.design = '<div class="B_children"></div>';
+
+				data.sources = sources;
+				data.style = '.B_component{margin-bottom:20px}.B_component:last-child{margin-bottom:0}.B_children{min-height:50px}';
+				data.settings = preparesettings(data.type, data.settings || EMPTYOBJECT);
+
+				SETTER('designer/load', data, function(response) {
+
+					var stamp = Date.now();
+					var currentsources = data.sources;
+
+					SETTER('loading/show');
+
+					response.sources && response.sources.wait(function(model, next) {
+
+						var item = currentsources.findItem('id', model.id);
+						if (item)
+							item.stamp = stamp;
+
+						if (model.modified) {
+							if (item) {
+								item.icon = model.icon;
+								item.color = model.color;
+								item.name = model.name;
+								item.url = model.url;
+								item.properites = model.properites;
+								item.modified = true;
+							} else {
+								model.stamp = stamp;
+								data.sources.push(model);
+							}
+
+							var cloned = CLONE(model);
+							// cloned.url = STRINGIFY(cloned.url);
+							// cloned.properties = STRINGIFY(cloned.properties);
+							cloned.url = cloned.url;
+							cloned.properties = cloned.properties;
+
+							AJAX(prepareurl(meta.url_sources_save, debug), cloned, next);
+						} else
+							next();
+
+					}, function() {
+
+						// remove
+						currentsources.wait(function(item, next, index) {
+							if (item.stamp !== stamp) {
+								AJAX(prepareurl(meta.url_sources_delete.format(item.id), debug), next);
+								next();
+							} else
+								next();
+						});
+
+						sources = data.sources = response.sources;
+
+						for (var i = 0; i < response.sources.length; i++)
+							delete response.sources[i].modified;
+
+						var settings = null;
+
+						if (response.settings) {
+							settings = {};
+							for (var i = 0; i < response.settings.length; i++) {
+								var item = response.settings[i];
+								settings[item.name] = item.value;
+							}
+						}
+
+						data.sourceid = response.sourceid;
+
+						var cloned = CLONE(response);
+						cloned.id = data.id;
+						cloned.type = data.type;
+						cloned.app = data.app;
+						cloned.sources = undefined;
+						cloned.source = undefined;
+						cloned.used = undefined;
+						cloned.components = undefined;
+						cloned.settings = settings;
+						cloned.changelog = Object.keys(cloned.changelog).join(', ');
+
+						AJAX(prepareurl(meta.url_designs_save, debug), cloned, NOOP);
+						EMIT('designer', data.id);
+
+						if (designs[data.id]) {
+							SETTER('#ui' + data.id + '/remove');
+							FREE();
+							delete designs[data.id];
+							data.design = response.design;
+							setTimeout(function(id, caller, initpayload) {
+								SETTER('loading/hide');
+								exports.scope();
+								EXEC('?/load', id, initpayload, caller);
+							}, 500, id, data.caller, data.initpayload);
+						} else
+							SETTER('loading/hide');
+
+					});
+				});
+			};
+
+			var loaddesign = function() {
+				AJAX(prepareurl(meta.url_designs.format(id), debug), meta.onresponse(function(response) {
+					response.color = meta.color;
+					response.sources = sources;
+					response.actions = actions;
+					response.components = meta.components;
+					response.caller = null;
+					var data = designs[id];
+					response.initpayload = data ? data.initpayload : null;
+					next(response);
+				}));
+			};
+
+			if (!sources) {
+				exports.scope();
+				exports.load_sources(function() {
+					exports.scope();
+					exports.load_actions(function() {
+						exports.scope();
+						loaddesign();
+					});
+				});
+			} else
+				loaddesign();
+		};
+
+	});
+
+	function prepare_largeform(path, data, build, type) {
+
+		var config = [];
+		var tmp = {};
+		var skip = { button_submit: 1, button_cancel: 1, validation: 1, title: 1, title_update: 1, padding: 1 };
+		var buttons = [];
+		var keys = Object.keys(build.settings);
+
+		for (var i = 0; i < keys.length; i++) {
+			var key = keys[i];
+			tmp[key] = build.settings[key];
+			if (!skip[key])
+				config.push(key + ':' + tmp[key]);
+		}
+
+		buttons.push('<nav' + (tmp.validation && tmp.button_submit ? ' data---="validation__{0}.payload__delay:200"'.format(build.path) : '') + '>');
+
+		if (tmp.button_submit)
+			buttons.push('<button name="submit" disabled>{0}</button>'.format(Thelpers.encode(tmp.button_submit)));
+
+		if (tmp.button_cancel)
+			buttons.push(('<button name="cancel"' + (tmp.button_submit ? '' : ' style="width:100%"') + '>{0}</button>').format(Thelpers.encode(tmp.button_cancel)));
+
+		buttons.push('</nav>');
+		var im = (('<div class="hidden invisible" data---="' + type + '__{0}__if:{1};reload:{4}/largeform_reload;submit:{4}/largeform_submit;{2};$id:ui{5};visibleY:1;initdelay:1500"><div' + (tmp.padding ? ' class="padding"' : '') + '><div data---="compiler__{1}__$id:{5}"></div></div>{3}</div>')).format(path + '.' + build.type, build.path, config.join(';'), buttons.join(''), path, build.id);
+		data.element.append(im);
+	}
+
+	EMIT('builder', builder);
+
+	ON('action', function($) {
+
+		if ($.action.substring(0, 7) === 'source ') {
+			var source = $.sources.findItem('id', $.action.substring(7));
+			if (source) {
+				if (source.type === 'crud') {
+					SETTER('approve/show', '@(Are you sure you want to remove selected item?)', '"trash-o" @(Remove)', function() {
+						if (source.url.delete) {
+							AJAX(FUNC.compiler_args(source.url.delete, $.data, $), builder.onresponse(function(response) {
+								EXEC('builder/load', $.id, $.initpayload);
+							}));
+						}
+					});
+				}
+			}
+			return;
+		}
+
+		if ($.action.substring(0, 1) === '@')
+			EXEC('builder/load', $.action.substring(1), $.data, $.id, $.rebind ? $.component : null);
+
+	});
+
+	(function() {
+		for (var i = 0; i < builder.components.length; i++) {
+			var url = builder.components[i];
+			if (url.charAt(0) === '/')
+				builder.components[i] = location.origin + url;
+		}
+	})();
+
+	if (!builder.onresponse) {
+		builder.onresponse = function(callback, data) {
+			return ASETTER('message/response', callback);
+		};
+		if (!M.$components.message)
+			ADD('LAZY message');
+	}
+
+</script>
