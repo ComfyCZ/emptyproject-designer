@@ -7,8 +7,9 @@
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
 	<meta name="robots" content="all,follow" />
-	<link href="https://cdn.componentator.com/spa.min@18.css" rel="stylesheet" type="text/css" />
+	<link href="https://cdn.componentator.com/spa.min@18pro.css" rel="stylesheet" type="text/css" />
 	<script src="https://cdn.componentator.com/spa.min@18.js"></script>
+	<!--<script src="https://cdn.componentator.com/designer/compiler.min.js"></script>-->
 	<script src="https://designer.totaljs.com/compiler.min.js"></script>
 	@{import('default.css + ui.css', 'ui.js + helpers.js', 'favicon.ico')}
 </head>
@@ -36,16 +37,16 @@
 				</div>
 			</main>
 			<footer data---="selected__common.page__selector:span">
-				<span title="@(Navigation)" class="exec" data-exec="common/part" data-if="navigation"><i class="fa fa-navicon"></i></span>
-				<span title="@(Designs)" class="exec" data-exec="common/part" data-if="designs"><i class="fa fa-layer-group"></i></span>
-				<span title="@(Users)" class="disabled"><i class="fa fa-users"></i></span>
-				<span title="@(Settings)" class="disabled"><i class="fa fa-cog"></i></span>
+				<span title="@(Navigation)" class="exec" data-exec="common/part" data-if="navigation"><i class="far fa-navicon"></i></span>
+				<span title="@(Designs)" class="exec" data-exec="common/part" data-if="designs"><i class="far fa-layer-group"></i></span>
+				<span title="@(Users)" class="disabled"><i class="far fa-users"></i></span>
+				<span title="@(Settings)" class="disabled"><i class="far fa-cog"></i></span>
 			</footer>
 		</div>
 		<div data-type="main">
 			<div data---="part__common.page__if:navigation;url:/parts/navigation.html" class="part"></div>
 			<div data---="part__common.page__if:designs;url:/parts/designs.html" class="part"></div>
-			<div data---="part__common.page__if:builder;url:https://cdn.componentator.com/designer/builder@1.html"></div>
+			<div data---="part__common.page__if:builder;url:https://designer.totaljs.com/builder@1.html"></div>
 		</div>
 	</div>
 
@@ -53,7 +54,7 @@
 
 		var common = {};
 
-		common.types = [{ id: 'view', name: 'View', icon: 'fa fa-columns' }, { id: 'largeform', name: 'Large form', icon: 'fab fa-wpforms' }, { id: 'form', name: 'Form', icon: 'far fa-window-maximize' }];
+		common.types = [{ id: 'view', name: 'View', icon: 'fal fa-window-maximize' }, { id: 'fullform', name: 'Full form', icon: 'fab fa-wpforms' }, { id: 'largeform', name: 'Large form', icon: 'fab fa-wpforms' }, { id: 'form', name: 'Form', icon: 'far fa-window-maximize' }, { id: 'miniform', name: 'Mini form', icon: 'fab fa-wpforms' }];
 		common.page = 'builder';
 
 		function maketree(arr, items, parentid) {
@@ -143,8 +144,7 @@
 			builder.url_actions = 'GET /api/actions/designer/';
 			builder.url_designs = 'GET /api/designs/{0}/';
 			builder.url_designs_save = 'POST /api/designs/';
-			builder.components = builder.components = ['https://cdn.componentator.com/designer/datatable@1.html','https://cdn.componentator.com/designer/dynamicvalue@1.html', 'https://cdn.componentator.com/designer/br@1.html', 'https://cdn.componentator.com/designer/button@1.html', 'https://cdn.componentator.com/designer/checkbox@1.html', 'https://cdn.componentator.com/designer/columns@1.html', 'https://cdn.componentator.com/designer/datagrid@1.html', 'https://cdn.componentator.com/designer/detail@1.html', 'https://cdn.componentator.com/designer/input@1.html', 'https://cdn.componentator.com/designer/label@1.html', 'https://cdn.componentator.com/designer/line@1.html', 'https://cdn.componentator.com/designer/tabs@1.html', 'https://cdn.componentator.com/designer/view@1.html', 'https://cdn.componentator.com/designer/panel@1.html', 'https://cdn.componentator.com/designer/radiobutton@1.html', 'https://cdn.componentator.com/designer/message@1.html', 'https://cdn.componentator.com/designer/toolbar@1.html'];
-			// builder.color = '#4285F4';
+			builder.components = ['https://cdn.componentator.com/designer/components.json'];
 		});
 
 	</script>

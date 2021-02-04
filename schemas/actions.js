@@ -24,14 +24,28 @@ NEWSCHEMA('Actions', function(schema) {
 	schema.addWorkflow('designer', function($) {
 		NOSQL('actions').find().callback(function(err, response) {
 			NOSQL('designs').find().fields('id,type,name,dtcreated').callback(function(err, designs) {
+
 				for (var i = 0; i < designs.length; i++) {
 					var item = designs[i];
 					item.id = '@' + item.id;
 					item.name = '@' + item.name;
 				}
+
 				response.push.apply(response, designs);
 				response.quicksort('dtcreated_desc');
-				$.callback(response);
+
+				NOSQL('sources').find().where('type', 'crud').fields('id,name,dtcreated').callback(function(err, sources) {
+
+					for (var i = 0; i < sources.length; i++) {
+						var item = sources[i];
+						item.id = 'source ' + item.id;
+						item.name = 'Remove: ' + item.name;
+					}
+
+					response.push.apply(response, sources);
+					$.callback(response);
+				});
+
 			});
 		});
 	});

@@ -2274,547 +2274,6 @@ COMPONENT('message', 'button:OK', function(self, config, cls) {
 	};
 });
 
-COMPONENT('largeform', 'zindex:12;padding:30;scrollbar:1;scrolltop:1;style:1', function(self, config, cls) {
-
-	var cls2 = '.' + cls;
-	var csspos = {};
-	var nav = false;
-	var init = false;
-
-	if (!W.$$largeform) {
-
-		W.$$largeform_level = W.$$largeform_level || 1;
-		W.$$largeform = true;
-
-		$(document).on('click', cls2 + '-button-close', function() {
-			SET($(this).attrd('path'), '');
-		});
-
-		var resize = function() {
-			setTimeout2(self.name, function() {
-				for (var i = 0; i < M.components.length; i++) {
-					var com = M.components[i];
-					if (com.name === 'largeform' && !HIDDEN(com.dom) && com.$ready && !com.$removed)
-						com.resize();
-				}
-			}, 200);
-		};
-
-		if (W.OP)
-			W.OP.on('resize', resize);
-		else
-			$(W).on('resize', resize);
-
-		$(document).on('click', cls2 + '-container', function(e) {
-
-			if (e.target === this) {
-				var com = $(this).component();
-				if (com && com.config.closeoutside) {
-					com.set('');
-					return;
-				}
-			}
-
-			var el = $(e.target);
-			if (el.hclass(cls + '-container') && !el.hclass(cls + '-style-2')) {
-				var form = el.find(cls2);
-				var c = cls + '-animate-click';
-				form.aclass(c);
-				setTimeout(function() {
-					form.rclass(c);
-				}, 300);
-			}
-		});
-	}
-
-	self.readonly();
-	self.submit = function() {
-		if (config.submit)
-			self.EXEC(config.submit, self.hide, self.element);
-		else
-			self.hide();
-	};
-
-	self.cancel = function() {
-		config.cancel && self.EXEC(config.cancel, self.hide);
-		self.hide();
-	};
-
-	self.hide = function() {
-		if (config.independent)
-			self.hideforce();
-		self.esc(false);
-		self.set('');
-	};
-
-	self.icon = function(value) {
-		var el = this.rclass2('fa');
-		value.icon && el.aclass(value.icon.indexOf(' ') === -1 ? ('fa fa-' + value.icon) : value.icon);
-	};
-
-	self.resize = function() {
-
-		if (self.hclass('hidden'))
-			return;
-
-		var padding = isMOBILE ? 0 : config.padding;
-		var ui = self.find(cls2);
-
-		csspos.height = WH - (config.style == 1 ? (padding * 2) : padding);
-		csspos.top = padding;
-		ui.css(csspos);
-
-		var el = self.find(cls2 + '-title');
-		var th = el.height();
-		csspos = { height: csspos.height - th, width: ui.width() };
-
-		if (nav)
-			csspos.height -= nav.height();
-
-		self.find(cls2 + '-body').css(csspos);
-		self.scrollbar && self.scrollbar.resize();
-		self.element.SETTER('*', 'resize');
-	};
-
-	self.make = function() {
-
-		$(document.body).append('<div id="{0}" class="hidden {4}-container invisible"><div class="{4}" style="max-width:{1}px"><div data-bind="@config__text span:value.title__change .{4}-icon:@icon" class="{4}-title"><button name="cancel" class="{4}-button-close{3}" data-path="{2}"><i class="fa fa-times"></i></button><i class="{4}-icon"></i><span></span></div><div class="{4}-body"></div></div>'.format(self.ID, config.width || 800, self.path, config.closebutton == false ? ' hidden' : '', cls));
-
-		var scr = self.find('> script');
-		self.template = scr.length ? scr.html().trim() : '';
-		scr.length && scr.remove();
-
-		var el = $('#' + self.ID);
-		var body = el.find(cls2 + '-body')[0];
-
-		while (self.dom.children.length) {
-			var child = self.dom.children[0];
-			if (child.tagName === 'NAV') {
-				nav = $(child);
-				body.parentNode.appendChild(child);
-			} else
-				body.appendChild(child);
-		}
-
-		self.rclass('hidden invisible');
-		self.replace(el, true);
-
-		if (config.scrollbar)
-			self.scrollbar = SCROLLBAR(self.find(cls2 + '-body'), { visibleY: config.visibleY, orientation: 'y' });
-
-		if (config.style === 2)
-			self.aclass(cls + '-style-2');
-
-		self.event('scroll', function() {
-			EMIT('scroll', self.name);
-			EMIT('reflow', self.name);
-		});
-
-		self.event('click', 'button[name]', function() {
-			var t = this;
-			switch (t.name) {
-				case 'submit':
-					self.submit(self.hide);
-					break;
-				case 'cancel':
-					!t.disabled && self[t.name](self.hide);
-					break;
-			}
-		});
-
-		config.enter && self.event('keydown', 'input', function(e) {
-			e.which === 13 && !self.find('button[name="submit"]')[0].disabled && setTimeout(self.submit, 800);
-		});
-	};
-
-	self.configure = function(key, value, init, prev) {
-		if (!init) {
-			switch (key) {
-				case 'width':
-					value !== prev && self.find(cls2).css('max-width', value + 'px');
-					break;
-				case 'closebutton':
-					self.find(cls2 + '-button-close').tclass('hidden', value !== true);
-					break;
-			}
-		}
-	};
-
-	self.esc = function(bind) {
-		if (bind) {
-			if (!self.$esc) {
-				self.$esc = true;
-				$(W).on('keydown', self.esc_keydown);
-			}
-		} else {
-			if (self.$esc) {
-				self.$esc = false;
-				$(W).off('keydown', self.esc_keydown);
-			}
-		}
-	};
-
-	self.esc_keydown = function(e) {
-		if (e.which === 27 && !e.isPropagationStopped()) {
-			var val = self.get();
-			if (!val || config.if === val) {
-				e.preventDefault();
-				e.stopPropagation();
-				self.hide();
-			}
-		}
-	};
-
-	self.hideforce = function() {
-		if (!self.hclass('hidden')) {
-			self.aclass('hidden');
-			self.release(true);
-			self.find(cls2).rclass(cls + '-animate');
-			W.$$largeform_level--;
-		}
-	};
-
-	var allowscrollbars = function() {
-		$('html').tclass(cls + '-noscroll', !!$(cls2 + '-container').not('.hidden').length);
-	};
-
-	self.setter = function(value) {
-
-		setTimeout2(self.name + '-noscroll', allowscrollbars, 50);
-
-		var isHidden = value !== config.if;
-
-		if (self.hclass('hidden') === isHidden) {
-			if (!isHidden) {
-				config.reload && self.EXEC(config.reload, self);
-				config.default && DEFAULT(self.makepath(config.default), true);
-				config.scrolltop && self.scrollbar && self.scrollbar.scrollTop(0);
-			}
-			return;
-		}
-
-		setTimeout2(cls, function() {
-			EMIT('reflow', self.name);
-		}, 10);
-
-		if (isHidden) {
-			if (!config.independent)
-				self.hideforce();
-			return;
-		}
-
-		if (self.template) {
-			var is = self.template.COMPILABLE();
-			self.find(cls2).append(self.template);
-			self.template = null;
-			is && COMPILE();
-		}
-
-		if (W.$$largeform_level < 1)
-			W.$$largeform_level = 1;
-
-		W.$$largeform_level++;
-
-		self.css('z-index', W.$$largeform_level * config.zindex);
-		self.rclass('hidden');
-
-		self.release(false);
-		config.scrolltop && self.scrollbar && self.scrollbar.scrollTop(0);
-
-		config.reload && self.EXEC(config.reload, self);
-		config.default && DEFAULT(self.makepath(config.default), true);
-
-		if (!isMOBILE && config.autofocus) {
-			setTimeout(function() {
-				self.find(typeof(config.autofocus) === 'string' ? config.autofocus : 'input[type="text"],select,textarea').eq(0).focus();
-			}, 1000);
-		}
-
-		self.resize();
-
-		setTimeout(function() {
-			self.rclass('invisible');
-			self.find(cls2).aclass(cls + '-animate');
-			if (!init && isMOBILE) {
-				$('body').aclass('hidden');
-				setTimeout(function() {
-					$('body').rclass('hidden');
-				}, 50);
-			}
-			init = true;
-		}, 300);
-
-		// Fixes a problem with freezing of scrolling in Chrome
-		setTimeout2(self.ID, function() {
-			self.css('z-index', (W.$$largeform_level * config.zindex) + 1);
-		}, 500);
-
-		config.closeesc && self.esc(true);
-	};
-});
-
-COMPONENT('form', 'zindex:12;scrollbar:1', function(self, config, cls) {
-
-	var cls2 = '.' + cls;
-	var container;
-	var csspos = {};
-
-	if (!W.$$form) {
-
-		W.$$form_level = W.$$form_level || 1;
-		W.$$form = true;
-
-		$(document).on('click', cls2 + '-button-close', function() {
-			SET($(this).attrd('path'), '');
-		});
-
-		var resize = function() {
-			setTimeout2('form', function() {
-				for (var i = 0; i < M.components.length; i++) {
-					var com = M.components[i];
-					if (com.name === 'form' && !HIDDEN(com.dom) && com.$ready && !com.$removed)
-						com.resize();
-				}
-			}, 200);
-		};
-
-		if (W.OP)
-			W.OP.on('resize', resize);
-		else
-			$(W).on('resize', resize);
-
-		$(document).on('click', cls2 + '-container', function(e) {
-
-			var el = $(e.target);
-			if (e.target === this || el.hclass(cls + '-container-padding')) {
-				var com = $(this).component();
-				if (com && com.config.closeoutside) {
-					com.set('');
-					return;
-				}
-			}
-
-			if (!(el.hclass(cls + '-container-padding') || el.hclass(cls + '-container')))
-				return;
-
-			var form = $(this).find(cls2);
-			var c = cls + '-animate-click';
-			form.aclass(c);
-
-			setTimeout(function() {
-				form.rclass(c);
-			}, 300);
-		});
-	}
-
-	self.readonly();
-	self.submit = function() {
-		if (config.submit)
-			self.EXEC(config.submit, self.hide, self.element);
-		else
-			self.hide();
-	};
-
-	self.cancel = function() {
-		config.cancel && self.EXEC(config.cancel, self.hide);
-		self.hide();
-	};
-
-	self.hide = function() {
-		if (config.independent)
-			self.hideforce();
-		self.esc(false);
-		self.set('');
-	};
-
-	self.icon = function(value) {
-		var el = this.rclass2('fa');
-		value.icon && el.aclass(value.icon.indexOf(' ') === -1 ? ('fa fa-' + value.icon) : value.icon);
-		el.tclass('hidden', !value.icon);
-	};
-
-	self.resize = function() {
-
-		if (self.scrollbar) {
-			container.css('height', WH);
-			self.scrollbar.resize();
-		}
-
-		if (!config.center || self.hclass('hidden'))
-			return;
-
-		var ui = self.find(cls2);
-		var fh = ui.innerHeight();
-		var wh = WH;
-		var r = (wh / 2) - (fh / 2);
-		csspos.marginTop = (r > 30 ? (r - 15) : 20) + 'px';
-		ui.css(csspos);
-	};
-
-	self.make = function() {
-
-		$(document.body).append('<div id="{0}" class="hidden {4}-container invisible"><div class="{4}-scrollbar"><div class="{4}-container-padding"><div class="{4}" style="max-width:{1}px"><div data-bind="@config__text span:value.title__change .{4}-icon:@icon" class="{4}-title"><button name="cancel" class="{4}-button-close{3}" data-path="{2}"><i class="fa fa-times"></i></button><i class="{4}-icon"></i><span></span></div></div></div></div>'.format(self.ID, config.width || 800, self.path, config.closebutton == false ? ' hidden' : '', cls));
-
-		var scr = self.find('> script');
-		self.template = scr.length ? scr.html().trim() : '';
-		if (scr.length)
-			scr.remove();
-
-		var el = $('#' + self.ID);
-		var body = el.find(cls2)[0];
-		container = el.find(cls2 + '-scrollbar');
-
-		if (config.scrollbar) {
-			el.css('overflow', 'hidden');
-			self.scrollbar = SCROLLBAR(el.find(cls2 + '-scrollbar'), { visibleY: 1, orientation: 'y' });
-		}
-
-		while (self.dom.children.length)
-			body.appendChild(self.dom.children[0]);
-
-		self.rclass('hidden invisible');
-		self.replace(el, true);
-
-		self.event('scroll', function() {
-			EMIT('scroll', self.name);
-			EMIT('reflow', self.name);
-		});
-
-		self.event('click', 'button[name]', function() {
-			var t = this;
-			switch (t.name) {
-				case 'submit':
-					self.submit(self.hide);
-					break;
-				case 'cancel':
-					!t.disabled && self[t.name](self.hide);
-					break;
-			}
-		});
-
-		config.enter && self.event('keydown', 'input', function(e) {
-			e.which === 13 && !self.find('button[name="submit"]')[0].disabled && setTimeout(self.submit, 800);
-		});
-	};
-
-	self.configure = function(key, value, init, prev) {
-		if (init)
-			return;
-		switch (key) {
-			case 'width':
-				value !== prev && self.find(cls2).css('max-width', value + 'px');
-				break;
-			case 'closebutton':
-				self.find(cls2 + '-button-close').tclass('hidden', value !== true);
-				break;
-		}
-	};
-
-	self.esc = function(bind) {
-		if (bind) {
-			if (!self.$esc) {
-				self.$esc = true;
-				$(W).on('keydown', self.esc_keydown);
-			}
-		} else {
-			if (self.$esc) {
-				self.$esc = false;
-				$(W).off('keydown', self.esc_keydown);
-			}
-		}
-	};
-
-	self.esc_keydown = function(e) {
-		if (e.which === 27 && !e.isPropagationStopped()) {
-			var val = self.get();
-			if (!val || config.if === val) {
-				e.preventDefault();
-				e.stopPropagation();
-				self.hide();
-			}
-		}
-	};
-
-	self.hideforce = function() {
-		if (!self.hclass('hidden')) {
-			self.aclass('hidden');
-			self.release(true);
-			self.find(cls2).rclass(cls + '-animate');
-			W.$$form_level--;
-		}
-	};
-
-	var allowscrollbars = function() {
-		$('html').tclass(cls + '-noscroll', !!$(cls2 + '-container').not('.hidden').length);
-	};
-
-	self.setter = function(value) {
-
-		setTimeout2(self.name + '-noscroll', allowscrollbars, 50);
-
-		var isHidden = value !== config.if;
-
-		if (self.hclass('hidden') === isHidden) {
-			if (!isHidden) {
-				config.reload && self.EXEC(config.reload, self);
-				config.default && DEFAULT(self.makepath(config.default), true);
-			}
-			return;
-		}
-
-		setTimeout2(cls, function() {
-			EMIT('reflow', self.name);
-		}, 10);
-
-		if (isHidden) {
-			if (!config.independent)
-				self.hideforce();
-			return;
-		}
-
-		if (self.template) {
-			var is = self.template.COMPILABLE();
-			self.find(cls2).append(self.template);
-			self.template = null;
-			is && COMPILE();
-		}
-
-		if (W.$$form_level < 1)
-			W.$$form_level = 1;
-
-		W.$$form_level++;
-
-		self.css('z-index', W.$$form_level * config.zindex);
-		self.element.scrollTop(0);
-		self.rclass('hidden');
-
-		self.resize();
-		self.release(false);
-
-		config.reload && self.EXEC(config.reload, self);
-		config.default && DEFAULT(self.makepath(config.default), true);
-
-		if (!isMOBILE && config.autofocus) {
-			setTimeout(function() {
-				self.find(typeof(config.autofocus) === 'string' ? config.autofocus : 'input[type="text"],select,textarea').eq(0).focus();
-			}, 1000);
-		}
-
-		setTimeout(function() {
-			self.rclass('invisible');
-			self.element.scrollTop(0);
-			self.find(cls2).aclass(cls + '-animate');
-		}, 300);
-
-		// Fixes a problem with freezing of scrolling in Chrome
-		setTimeout2(self.ID, function() {
-			self.css('z-index', (W.$$form_level * config.zindex) + 1);
-		}, 500);
-
-		config.closeesc && self.esc(true);
-	};
-});
-
 COMPONENT('validation', 'delay:100;flags:visible', function(self, config, cls) {
 
 	var path, elements = null;
@@ -3399,16 +2858,17 @@ COMPONENT('navigation', 'pk:id', function(self, config, cls) {
 	};
 });
 
-COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clusterize:true;limit:80;filterlabel:Filter;height:auto;margin:0;resize:true;reorder:true;sorting:true;boolean:true,on,yes;pluralizepages:# pages,# page,# pages,# pages;pluralizeitems:# items,# item,# items,# items;remember:true;highlight:false;unhighlight:true;autoselect:false;buttonapply:Apply;buttonreset:Reset;allowtitles:false;fullwidth_xs:true;clickid:id;dirplaceholder:Search;autoformat:1', function(self, config) {
+COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clusterize:true;limit:80;filterlabel:Filter;height:auto;margin:0;resize:true;reorder:true;sorting:true;boolean:true,on,yes;pluralizepages:# pages,# page,# pages,# pages;pluralizeitems:# items,# item,# items,# items;remember:true;highlight:false;unhighlight:true;autoselect:false;buttonapply:Apply;buttonreset:Reset;allowtitles:false;fullwidth_xs:true;clickid:id;dirplaceholder:Search;autoformat:1;controls:1', function(self, config) {
 
 	var opt = { filter: {}, filtercache: {}, filtercl: {}, filtervalues: {}, scroll: false, selected: {}, operation: '' };
 	var header, vbody, footer, container, ecolumns, isecolumns = false, ready = false;
-	var sheader, sbody;
+	var sheader, sbody, econtrols;
 	var Theadercol = Tangular.compile('<div class="dg-hcol dg-col-{{ index }}{{ if sorting }} dg-sorting{{ fi }}" data-index="{{ index }}">{{ if sorting }}<i class="dg-sort fa fa-sort"></i>{{ fi }}<div class="dg-label{{ alignheader }}"{{ if labeltitle }} title="{{ labeltitle }}"{{ fi }}{{ if reorder }} draggable="true"{{ fi }}>{{ label | raw }}</div>{{ if filter }}<div class="dg-filter{{ alignfilter }}{{ if filterval != null && filterval !== \'\' }} dg-filter-selected{{ fi }}"><i class="fa dg-filter-cancel fa-times"></i>{{ if options }}<label data-name="{{ name }}">{{ if filterval }}{{ filterval }}{{ else }}{{ filter }}{{ fi }}</label>{{ else }}<input autocomplete="new-password" type="text" placeholder="{{ filter }}" class="dg-filter-input" name="{{ name }}{{ ts }}" data-name="{{ name }}" value="{{ filterval }}" />{{ fi }}</div>{{ else }}<div class="dg-filter-empty">&nbsp;</div>{{ fi }}</div>');
 	var isIE = (/msie|trident/i).test(navigator.userAgent);
 	var isredraw = false;
 	var forcescroll = '';
 	var schemas = {};
+	var controls = { el: null, timeout: null, is: false, cache: {} };
 
 	self.meta = opt;
 
@@ -3574,7 +3034,7 @@ COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clu
 
 	self.init = function() {
 
-		$(W).on('resize', function() {
+		ON('resize + resize2', function() {
 			setTimeout2('datagridresize', function() {
 				SETTER('datagrid/resize');
 			}, 500);
@@ -3653,7 +3113,7 @@ COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clu
 						opt.filter = {};
 						opt.scroll = '';
 						opt.selected = {};
-						self.rebind(value);
+						self.rebind(value, true);
 						type && self.setter(null);
 					}
 				});
@@ -3715,28 +3175,107 @@ COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clu
 
 			if (!schemas.default)
 				schemas.default = el.html();
+
+		});
+
+		controls.show = function(dom) {
+
+			if (controls.ishidding || !opt.controls || !config.controls)
+				return;
+
+			var el = $(dom);
+			var off = el.position();
+			var css = {};
+			var clshover = 'dg-row-hover';
+			var index = el.attrd('index');
+			controls.el && controls.el.rclass(clshover);
+			controls.el = $(dom).aclass(clshover);
+
+			var div = controls.cache[index];
+
+			if (div === null) {
+				controls.hide();
+				return;
+			}
+
+			if (!div) {
+				var html = opt.controls(opt.rows[+index]);
+				div = controls.cache[index] = html ? $('<div>' + html + '</div>')[0] : null;
+				controls.cache[index] = div;
+				if (div === null) {
+					controls.hide();
+					return;
+				}
+			}
+
+			while (true) {
+				var child = econtrols[0].firstChild;
+				if (child)
+					econtrols[0].removeChild(child);
+				else
+					break;
+			}
+
+			econtrols[0].appendChild(div);
+			css.top = Math.ceil(off.top - ((econtrols.height() / 2) - (config.rowheight / 2))) - 2;
+			econtrols.css(css).rclass('hidden').aclass('dg-controls-visible', 50).attrd('index', index);
+			controls.timeout = null;
+			controls.is = true;
+			controls.y = self.scrollbarY.scrollTop();
+		};
+
+		controls.hide = function(type) {
+			if (controls.is) {
+
+				// scrollbar
+				if (type === 1) {
+					var y = self.scrollbarY.scrollTop();
+					if (controls.y === y)
+						return;
+				} else if (type === 2) {
+					controls.ishidding = true;
+					setTimeout(function() {
+						controls.ishidding = false;
+					}, 1000);
+				}
+
+				controls.el.rclass('dg-row-hover');
+				controls.el = null;
+				controls.is = false;
+				econtrols.aclass('hidden').rclass('dg-controls-visible');
+			}
+		};
+
+		ON('scroll', function() {
+			controls.hide(1);
+		});
+
+		self.event('mouseenter', '.dg-row', function(e) {
+			controls.timeout && clearTimeout(controls.timeout);
+			controls.timeout = setTimeout(controls.show, controls.is ? 50 : 500, this, e);
 		});
 
 		var pagination = '';
-
 		if (config.exec)
 			pagination = '<div class="dg-footer hidden"><div class="dg-pagination-items hidden-xs"></div><div class="dg-pagination"><button name="page-first" disabled><i class="fa fa-angle-double-left"></i></button><button name="page-prev" disabled><i class="fa fa-angle-left"></i></button><div><input type="text" name="page" maxlength="5" class="dg-pagination-input" /></div><button name="page-next" disabled><i class="fa fa-angle-right"></i></button><button name="page-last" disabled><i class="fa fa-angle-double-right"></i></button></div><div class="dg-pagination-pages"></div></div>';
 
-		self.dom.innerHTML = '<div class="dg-btn-columns"><i class="fa fa-caret-left"></i><span class="fa fa-columns"></span></div><div class="dg-columns hidden"><div><div class="dg-columns-body"></div></div><button class="dg-columns-button" name="columns-apply"><i class="fa fa-check-circle"></i>{1}</button><span class="dt-columns-reset">{2}</span></div><div class="dg-container"><span class="dg-resize-line hidden"></span><div class="dg-header-scrollbar"><div class="dg-header"></div><div class="dg-body-scrollbar"><div class="dg-body"></div></div></div></div>{0}'.format(pagination, config.buttonapply, config.buttonreset);
+		self.dom.innerHTML = '<div class="dg-btn-columns"><i class="fa fa-caret-left"></i><span class="fa fa-columns"></span></div><div class="dg-columns hidden"><div><div class="dg-columns-body"></div></div><button class="dg-columns-button" name="columns-apply"><i class="fa fa-check-circle"></i>{1}</button><span class="dt-columns-reset">{2}</span></div><div class="dg-container"><div class="dg-controls"></div><span class="dg-resize-line hidden"></span><div class="dg-header-scrollbar"><div class="dg-header"></div><div class="dg-body-scrollbar"><div class="dg-body"></div></div></div></div>{0}'.format(pagination, config.buttonapply, config.buttonreset);
 
 		header = self.find('.dg-header');
 		vbody = self.find('.dg-body');
 		footer = self.find('.dg-footer');
 		container = self.find('.dg-container');
 		ecolumns = self.find('.dg-columns');
-
 		sheader = self.find('.dg-header-scrollbar');
 		sbody = self.find('.dg-body-scrollbar');
+		econtrols = self.find('.dg-controls');
+
+		container.on('mouseleave', function() {
+			controls.hide(2);
+		});
 
 		self.scrollbarY = config.height !== 'fluid' ? SCROLLBAR(sbody, { visibleY: true, orientation: 'y', controls: container, marginY: isMOBILE ? 0 : 54 }) : null;
 		self.scrollbarX = SCROLLBAR(sheader, { visibleX: true, orientation: 'x', controls: container });
-
-		// self.scrollbar.sync(sheader, 'x');
 
 		if (schemas.default) {
 			self.rebind(schemas.default);
@@ -3787,8 +3326,11 @@ COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clu
 		var r = { is: false };
 
 		self.event('click', '.dg-btn-columns', function(e) {
+
 			e.preventDefault();
 			e.stopPropagation();
+
+			controls.hide();
 
 			var cls = 'hidden';
 			if (isecolumns) {
@@ -3815,6 +3357,7 @@ COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clu
 			var opts = col.options instanceof Array ? col.options : GET(col.options);
 			var dir = {};
 
+			controls.hide();
 			dir.element = el;
 			dir.items = opts;
 			dir.key = col.otext;
@@ -3830,6 +3373,7 @@ COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clu
 		});
 
 		self.event('dblclick', '.dg-col', function(e) {
+			controls.hide();
 			e.preventDefault();
 			e.stopPropagation();
 			self.editcolumn($(this));
@@ -3839,9 +3383,7 @@ COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clu
 		r.line = container.find('.dg-resize-line');
 
 		var findclass = function(node) {
-
 			var count = 0;
-
 			while (true) {
 				for (var i = 1; i < arguments.length; i++) {
 					if (node.classList.contains(arguments[i]))
@@ -3851,7 +3393,6 @@ COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clu
 				if ((count++) > 4)
 					break;
 			}
-
 		};
 
 		self.event('click', '.dg-row', function(e) {
@@ -3891,8 +3432,16 @@ COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clu
 					if (!config.unhighlight || self.selected !== row) {
 						self.selected = row;
 						elrow.aclass(cls);
-					} else
+						controls.show(el[0]);
+					} else {
 						rowarg = self.selected = null;
+						controls.is && controls.hide();
+					}
+				} else {
+					if (controls.is)
+						controls.hide();
+					else if (rowarg)
+						controls.show(el[0]);
 				}
 
 				config.click && self.SEEX(config.click, rowarg, self, elrow, target);
@@ -3913,6 +3462,9 @@ COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clu
 
 		self.event('click', '.dg-filter-cancel,.dt-columns-reset', function() {
 			var el = $(this);
+
+			controls.hide();
+
 			if (el.hclass('dt-columns-reset'))
 				self.resetcolumns();
 			else {
@@ -3944,6 +3496,8 @@ COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clu
 		self.event('click', '.dg-label,.dg-sort', function() {
 
 			var el = $(this).closest('.dg-hcol');
+
+			controls.hide();
 
 			if (!el.find('.dg-sort').length)
 				return;
@@ -3986,11 +3540,13 @@ COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clu
 		});
 
 		self.event('mousedown', function(e) {
+
 			var el = $(e.target);
 
 			if (!el.hclass('dg-resize'))
 				return;
 
+			controls.hide();
 			events.bind();
 
 			var offset = self.element.offset().left;
@@ -4104,6 +3660,7 @@ COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clu
 			value.page = val;
 			forcescroll = opt.scroll = 'y';
 			self.operation('page');
+			controls.hide();
 		});
 
 		self.event('change', '.dg-filter-input', function() {
@@ -4141,6 +3698,7 @@ COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clu
 			opt.operation = 'filter';
 			el.tclass('dg-filter-selected', is);
 			self.fn_refresh();
+			controls.hide();
 		});
 
 		self.select = function(row) {
@@ -4154,7 +3712,6 @@ COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clu
 				index = opt.rows.indexOf(row);
 
 			var cls = 'dg-selected';
-
 			if (!row || index === -1) {
 				self.selected = null;
 				opt.cluster && opt.cluster.el.find('.' + cls).rclass(cls);
@@ -4171,6 +3728,7 @@ COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clu
 			}
 
 			config.click && self.SEEX(config.click, row, self, elrow, null);
+			controls.hide();
 		};
 
 		self.event('click', '.dg-checkbox', function() {
@@ -4237,7 +3795,8 @@ COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clu
 					break;
 				default:
 					var el = $(this);
-					var row = opt.rows[+el.closest('.dg-row').attrd('index')];
+					var index = +el.closest('.dg-row,.dg-controls').attrd('index');
+					var row = opt.rows[index];
 					config.button && self.SEEX(config.button, this.name, row, el, e);
 					break;
 			}
@@ -4390,7 +3949,7 @@ COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clu
 
 	};
 
-	self.rebind = function(code) {
+	self.rebind = function(code, prerender) {
 
 		if (code.length < 30 && code.indexOf(' ') === -1) {
 			schemas.$current = code;
@@ -4419,6 +3978,13 @@ COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clu
 
 			if (typeof(col) === 'string') {
 				opt.rowclasstemplate = Tangular.compile(col);
+				cols.splice(i, 1);
+				i--;
+				continue;
+			}
+
+			if (col.type === 'controls' || col.type === 'buttons') {
+				opt.controls = col.template ? Tangular.compile(col.template) : null;
 				cols.splice(i, 1);
 				i--;
 				continue;
@@ -4554,6 +4120,8 @@ COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clu
 		cols.quicksort('index');
 		opt.cols = cols;
 		self.rebindcss();
+		prerender && self.rendercols();
+		controls.hide();
 
 		// self.scrollbar.scroll(0, 0);
 	};
@@ -4656,6 +4224,8 @@ COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clu
 		var index = opt.rows.indexOf(oldrow);
 		if (index !== -1) {
 
+			controls.cache = {};
+
 			// Replaces old row with a new
 			if (newrow) {
 				if (self.selected === oldrow)
@@ -4675,6 +4245,8 @@ COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clu
 
 		var index = prepend ? 0 : (opt.rows.push(row) - 1);
 		var model = self.get();
+
+		controls.cache = {};
 
 		if (model == null) {
 			// bad
@@ -4754,6 +4326,7 @@ COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clu
 	self.renderrows = function(rows, noscroll) {
 
 		opt.rows = rows;
+		controls.cache = {};
 
 		var output = [];
 		var plus = 0;
@@ -4764,8 +4337,21 @@ COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clu
 			plus = (val.page - 1) * val.limit;
 		}
 
-		for (var i = 0, length = rows.length; i < length; i++)
+		var is = false;
+
+		for (var i = 0, length = rows.length; i < length; i++) {
+			var row = rows[i];
+			if (!is && self.selected) {
+				if (self.selected === row) {
+					is = true;
+				} else if (config.clickid && self.selected[config.clickid] === row[config.clickid]) {
+					self.selected = row;
+					is = true;
+				}
+			}
+
 			output.push(self.renderrow(i, rows[i], plus));
+		}
 
 		var min = ((((opt.height || config.minheight) - 120) / config.rowheight) >> 0) + 1;
 		var is = output.length < min;
@@ -4852,6 +4438,7 @@ COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clu
 		opt.cluster && opt.cluster.update(opt.render, true);
 		self.scrolling();
 
+		controls.hide();
 		config.remember && self.save();
 	};
 
@@ -4936,6 +4523,7 @@ COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clu
 		var mr = (vbody.parent().css('margin-right') || '').parseInt();
 		var h = opt.height - footerh;
 		var sh = SCROLLBARWIDTH();
+		controls.hide();
 
 		if (config.height === 'fluid') {
 			var mh = config.minheight;
@@ -5012,6 +4600,7 @@ COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clu
 			opt.width2 = w;
 		}
 
+		opt.height = h + footerh;
 		self.scrollbarX.resize();
 		self.scrollbarY && self.scrollbarY.resize();
 
@@ -5098,20 +4687,22 @@ COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clu
 			var sel = self.selected;
 			if (config.autoselect && output && output.length) {
 				setTimeout(function() {
-					self.select(sel ? output.findItem(config.clickid, sel.id) : output[0]);
+					var index = sel ? output.indexOf(sel) : 0;
+					if (index === -1)
+						index = 0;
+					self.select(output[index]);
 				}, 1);
-			} else if (opt.operation !== 'sort') {
-				self.select(sel ? output.findItem(config.clickid, sel.id) : null);
 			} else {
-				var tmp = sel ? output.findItem(config.clickid, sel.id) : null;
-				tmp && self.select(tmp);
+				var index = sel ? output.indexOf(sel) : -1;
+				self.select(index === -1 ? null : output[index]);
 			}
 		}
 	};
 
 	self.redrawsorting = function() {
-		self.find('.dg-sorting').each(function() {
-			var el = $(this);
+		var arr = self.find('.dg-sorting');
+		for(var i = 0; i < arr.length; i++) {
+			var el = $(arr[i]);
 			var col = opt.cols[+el.attrd('index')];
 			if (col) {
 				var fa = el.find('.dg-sort').rclass2('fa-');
@@ -5127,7 +4718,8 @@ COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clu
 						break;
 				}
 			}
-		});
+		}
+		controls.hide();
 	};
 
 	self.resetcolumns = function() {
@@ -5141,6 +4733,7 @@ COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clu
 		self.cols(NOOP);
 		ecolumns.aclass('hidden');
 		isecolumns = false;
+		controls.hide();
 	};
 
 	self.resetfilter = function() {
@@ -5153,6 +4746,7 @@ COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clu
 			self.operation('refresh');
 		else
 			self.refresh();
+		controls.hide();
 	};
 
 	var pagecache = { pages: -1, count: -1 };
@@ -5223,15 +4817,20 @@ COMPONENT('datagrid', 'checkbox:true;colwidth:150;rowheight:28;minheight:200;clu
 			return;
 		}
 
-		if (config.exec && value == null) {
+		controls.hide();
+
+		if (config.exec && (value == null || value.items == null)) {
 			self.operation('refresh');
-			return;
+			if (value && value.items == null)
+				value.items = [];
+			else
+				return;
 		}
 
 		if (value && value.schema && schemas.$current !== value.schema) {
 			schemas.$current = value.schema;
 			self.selected = null;
-			self.rebind(value.schema);
+			self.rebind(schemas[value.schema], true);
 			setTimeout(function() {
 				self.setter(value, path, type);
 			}, 100);
@@ -7479,6 +7078,1273 @@ COMPONENT('menu', function(self, config, cls) {
 		self.opt = null;
 		self.aclass('hidden');
 		self.rclass(cls + '-visible');
+	};
+
+});
+
+COMPONENT('form', 'zindex:12;scrollbar:1', function(self, config, cls) {
+
+	var cls2 = '.' + cls;
+	var container;
+	var csspos = {};
+
+	if (!W.$$form) {
+
+		W.$$form_level = W.$$form_level || 1;
+		W.$$form = true;
+
+		$(document).on('click', cls2 + '-button-close', function() {
+			SET($(this).attrd('path'), '');
+		});
+
+		var resize = function() {
+			setTimeout2('form', function() {
+				for (var i = 0; i < M.components.length; i++) {
+					var com = M.components[i];
+					if (com.name === 'form' && !HIDDEN(com.dom) && com.$ready && !com.$removed)
+						com.resize();
+				}
+			}, 200);
+		};
+
+		ON('resize2', resize);
+
+		$(document).on('click', cls2 + '-container', function(e) {
+
+			var el = $(e.target);
+			if (e.target === this || el.hclass(cls + '-container-padding')) {
+				var com = $(this).component();
+				if (com && com.config.closeoutside) {
+					com.set('');
+					return;
+				}
+			}
+
+			if (!(el.hclass(cls + '-container-padding') || el.hclass(cls + '-container')))
+				return;
+
+			var form = $(this).find(cls2);
+			var c = cls + '-animate-click';
+			form.aclass(c);
+
+			setTimeout(function() {
+				form.rclass(c);
+			}, 300);
+		});
+	}
+
+	self.readonly();
+	self.submit = function() {
+		if (config.submit)
+			self.EXEC(config.submit, self.hide, self.element);
+		else
+			self.hide();
+	};
+
+	self.cancel = function() {
+		config.cancel && self.EXEC(config.cancel, self.hide);
+		self.hide();
+	};
+
+	self.hide = function() {
+		if (config.independent)
+			self.hideforce();
+		self.esc(false);
+		self.set('');
+	};
+
+	self.icon = function(value) {
+		var el = this.rclass2('fa');
+		value.icon && el.aclass(value.icon.indexOf(' ') === -1 ? ('fa fa-' + value.icon) : value.icon);
+		el.tclass('hidden', !value.icon);
+	};
+
+	self.resize = function() {
+
+		if (self.scrollbar) {
+			container.css('height', WH);
+			self.scrollbar.resize();
+		}
+
+		if (!config.center || self.hclass('hidden'))
+			return;
+
+		var ui = self.find(cls2);
+		var fh = ui.innerHeight();
+		var wh = WH;
+		var r = (wh / 2) - (fh / 2);
+		csspos.marginTop = (r > 30 ? (r - 15) : 20) + 'px';
+		ui.css(csspos);
+	};
+
+	self.make = function() {
+
+		$(document.body).append('<div id="{0}" class="hidden {4}-container invisible"><div class="{4}-scrollbar"><div class="{4}-container-padding"><div class="{4}" style="max-width:{1}px"><div data-bind="@config__text span:value.title__change .{4}-icon:@icon" class="{4}-title"><button name="cancel" class="{4}-button-close{3}" data-path="{2}"><i class="fa fa-times"></i></button><i class="{4}-icon"></i><span></span></div></div></div></div>'.format(self.ID, config.width || 800, self.path, config.closebutton == false ? ' hidden' : '', cls));
+
+		var scr = self.find('> script');
+		self.template = scr.length ? scr.html().trim() : '';
+		if (scr.length)
+			scr.remove();
+
+		var el = $('#' + self.ID);
+		var body = el.find(cls2)[0];
+		container = el.find(cls2 + '-scrollbar');
+
+		if (config.scrollbar) {
+			el.css('overflow', 'hidden');
+			self.scrollbar = SCROLLBAR(el.find(cls2 + '-scrollbar'), { visibleY: 1, orientation: 'y' });
+		}
+
+		while (self.dom.children.length)
+			body.appendChild(self.dom.children[0]);
+
+		self.rclass('hidden invisible');
+		self.replace(el, true);
+
+		self.event('scroll', function() {
+			EMIT('scroll', self.name);
+			EMIT('reflow', self.name);
+		});
+
+		self.event('click', 'button[name]', function() {
+			var t = this;
+			switch (t.name) {
+				case 'submit':
+					self.submit(self.hide);
+					break;
+				case 'cancel':
+					!t.disabled && self[t.name](self.hide);
+					break;
+			}
+		});
+
+		config.enter && self.event('keydown', 'input', function(e) {
+			e.which === 13 && !self.find('button[name="submit"]')[0].disabled && setTimeout(self.submit, 800);
+		});
+	};
+
+	self.configure = function(key, value, init, prev) {
+		if (init)
+			return;
+		switch (key) {
+			case 'width':
+				value !== prev && self.find(cls2).css('max-width', value + 'px');
+				break;
+			case 'closebutton':
+				self.find(cls2 + '-button-close').tclass('hidden', value !== true);
+				break;
+		}
+	};
+
+	self.esc = function(bind) {
+		if (bind) {
+			if (!self.$esc) {
+				self.$esc = true;
+				$(W).on('keydown', self.esc_keydown);
+			}
+		} else {
+			if (self.$esc) {
+				self.$esc = false;
+				$(W).off('keydown', self.esc_keydown);
+			}
+		}
+	};
+
+	self.esc_keydown = function(e) {
+		if (e.which === 27 && !e.isPropagationStopped()) {
+			var val = self.get();
+			if (!val || config.if === val) {
+				e.preventDefault();
+				e.stopPropagation();
+				self.hide();
+			}
+		}
+	};
+
+	self.hideforce = function() {
+		if (!self.hclass('hidden')) {
+			self.aclass('hidden');
+			self.release(true);
+			self.find(cls2).rclass(cls + '-animate');
+			W.$$form_level--;
+		}
+	};
+
+	var allowscrollbars = function() {
+		$('html').tclass(cls + '-noscroll', !!$(cls2 + '-container').not('.hidden').length);
+	};
+
+	self.setter = function(value) {
+
+		setTimeout2(self.name + '-noscroll', allowscrollbars, 50);
+
+		var isHidden = value !== config.if;
+
+		if (self.hclass('hidden') === isHidden) {
+			if (!isHidden) {
+				config.reload && self.EXEC(config.reload, self);
+				config.default && DEFAULT(self.makepath(config.default), true);
+			}
+			return;
+		}
+
+		setTimeout2(cls, function() {
+			EMIT('reflow', self.name);
+		}, 10);
+
+		if (isHidden) {
+			if (!config.independent)
+				self.hideforce();
+			return;
+		}
+
+		if (self.template) {
+			var is = self.template.COMPILABLE();
+			self.find(cls2).append(self.template);
+			self.template = null;
+			is && COMPILE();
+		}
+
+		if (W.$$form_level < 1)
+			W.$$form_level = 1;
+
+		W.$$form_level++;
+
+		self.css('z-index', W.$$form_level * config.zindex);
+		self.element.scrollTop(0);
+		self.rclass('hidden');
+
+		self.resize();
+		self.release(false);
+
+		config.reload && self.EXEC(config.reload, self);
+		config.default && DEFAULT(self.makepath(config.default), true);
+
+		if (!isMOBILE && config.autofocus) {
+			setTimeout(function() {
+				self.find(typeof(config.autofocus) === 'string' ? config.autofocus : 'input[type="text"],select,textarea').eq(0).focus();
+			}, 1000);
+		}
+
+		setTimeout(function() {
+			self.rclass('invisible');
+			self.element.scrollTop(0);
+			self.find(cls2).aclass(cls + '-animate');
+		}, 300);
+
+		// Fixes a problem with freezing of scrolling in Chrome
+		setTimeout2(self.ID, function() {
+			self.css('z-index', (W.$$form_level * config.zindex) + 1);
+		}, 500);
+
+		config.closeesc && self.esc(true);
+	};
+});
+
+COMPONENT('largeform', 'zindex:12;padding:30;scrollbar:1;scrolltop:1;style:1', function(self, config, cls) {
+
+	var cls2 = '.' + cls;
+	var csspos = {};
+	var nav = false;
+	var init = false;
+
+	if (!W.$$largeform) {
+
+		W.$$largeform_level = W.$$largeform_level || 1;
+		W.$$largeform = true;
+
+		$(document).on('click', cls2 + '-button-close', function() {
+			SET($(this).attrd('path'), '');
+		});
+
+		var resize = function() {
+			setTimeout2(self.name, function() {
+				for (var i = 0; i < M.components.length; i++) {
+					var com = M.components[i];
+					if (com.name === 'largeform' && !HIDDEN(com.dom) && com.$ready && !com.$removed)
+						com.resize();
+				}
+			}, 200);
+		};
+
+		ON('resize2', resize);
+
+		$(document).on('click', cls2 + '-container', function(e) {
+
+			if (e.target === this) {
+				var com = $(this).component();
+				if (com && com.config.closeoutside) {
+					com.set('');
+					return;
+				}
+			}
+
+			var el = $(e.target);
+			if (el.hclass(cls + '-container') && !el.hclass(cls + '-style-2')) {
+				var form = el.find(cls2);
+				var c = cls + '-animate-click';
+				form.aclass(c);
+				setTimeout(function() {
+					form.rclass(c);
+				}, 300);
+			}
+		});
+	}
+
+	self.readonly();
+	self.submit = function() {
+		if (config.submit)
+			self.EXEC(config.submit, self.hide, self.element);
+		else
+			self.hide();
+	};
+
+	self.cancel = function() {
+		config.cancel && self.EXEC(config.cancel, self.hide);
+		self.hide();
+	};
+
+	self.hide = function() {
+		if (config.independent)
+			self.hideforce();
+		self.esc(false);
+		self.set('');
+	};
+
+	self.icon = function(value) {
+		var el = this.rclass2('fa');
+		value.icon && el.aclass(value.icon.indexOf(' ') === -1 ? ('fa fa-' + value.icon) : value.icon);
+	};
+
+	self.resize = function() {
+
+		if (self.hclass('hidden'))
+			return;
+
+		var padding = isMOBILE ? 0 : config.padding;
+		var ui = self.find(cls2);
+
+		csspos.height = WH - (config.style == 1 ? (padding * 2) : padding);
+		csspos.top = padding;
+		ui.css(csspos);
+
+		var el = self.find(cls2 + '-title');
+		var th = el.height();
+		csspos = { height: csspos.height - th, width: ui.width() };
+
+		if (nav)
+			csspos.height -= nav.height();
+
+		self.find(cls2 + '-body').css(csspos);
+		self.scrollbar && self.scrollbar.resize();
+		self.element.SETTER('*', 'resize');
+	};
+
+	self.make = function() {
+
+		$(document.body).append('<div id="{0}" class="hidden {4}-container invisible"><div class="{4}" style="max-width:{1}px"><div data-bind="@config__text span:value.title__change .{4}-icon:@icon" class="{4}-title"><button name="cancel" class="{4}-button-close{3}" data-path="{2}"><i class="fa fa-times"></i></button><i class="{4}-icon"></i><span></span></div><div class="{4}-body"></div></div>'.format(self.ID, config.width || 800, self.path, config.closebutton == false ? ' hidden' : '', cls));
+
+		var scr = self.find('> script');
+		self.template = scr.length ? scr.html().trim() : '';
+		scr.length && scr.remove();
+
+		var el = $('#' + self.ID);
+		var body = el.find(cls2 + '-body')[0];
+
+		while (self.dom.children.length) {
+			var child = self.dom.children[0];
+			if (child.tagName === 'NAV') {
+				nav = $(child);
+				body.parentNode.appendChild(child);
+			} else
+				body.appendChild(child);
+		}
+
+		self.rclass('hidden invisible');
+		self.replace(el, true);
+
+		if (config.scrollbar)
+			self.scrollbar = SCROLLBAR(self.find(cls2 + '-body'), { visibleY: config.visibleY, orientation: 'y' });
+
+		if (config.style === 2)
+			self.aclass(cls + '-style-2');
+
+		self.event('scroll', function() {
+			EMIT('scroll', self.name);
+			EMIT('reflow', self.name);
+		});
+
+		self.event('click', 'button[name]', function() {
+			var t = this;
+			switch (t.name) {
+				case 'submit':
+					self.submit(self.hide);
+					break;
+				case 'cancel':
+					!t.disabled && self[t.name](self.hide);
+					break;
+			}
+		});
+
+		config.enter && self.event('keydown', 'input', function(e) {
+			e.which === 13 && !self.find('button[name="submit"]')[0].disabled && setTimeout(self.submit, 800);
+		});
+	};
+
+	self.configure = function(key, value, init, prev) {
+		if (!init) {
+			switch (key) {
+				case 'width':
+					value !== prev && self.find(cls2).css('max-width', value + 'px');
+					break;
+				case 'closebutton':
+					self.find(cls2 + '-button-close').tclass('hidden', value !== true);
+					break;
+			}
+		}
+	};
+
+	self.esc = function(bind) {
+		if (bind) {
+			if (!self.$esc) {
+				self.$esc = true;
+				$(W).on('keydown', self.esc_keydown);
+			}
+		} else {
+			if (self.$esc) {
+				self.$esc = false;
+				$(W).off('keydown', self.esc_keydown);
+			}
+		}
+	};
+
+	self.esc_keydown = function(e) {
+		if (e.which === 27 && !e.isPropagationStopped()) {
+			var val = self.get();
+			if (!val || config.if === val) {
+				e.preventDefault();
+				e.stopPropagation();
+				self.hide();
+			}
+		}
+	};
+
+	self.hideforce = function() {
+		if (!self.hclass('hidden')) {
+			self.aclass('hidden');
+			self.release(true);
+			self.find(cls2).rclass(cls + '-animate');
+			W.$$largeform_level--;
+		}
+	};
+
+	var allowscrollbars = function() {
+		$('html').tclass(cls + '-noscroll', !!$(cls2 + '-container').not('.hidden').length);
+	};
+
+	self.setter = function(value) {
+
+		setTimeout2(self.name + '-noscroll', allowscrollbars, 50);
+
+		var isHidden = value !== config.if;
+
+		if (self.hclass('hidden') === isHidden) {
+			if (!isHidden) {
+				config.reload && self.EXEC(config.reload, self);
+				config.default && DEFAULT(self.makepath(config.default), true);
+				config.scrolltop && self.scrollbar && self.scrollbar.scrollTop(0);
+			}
+			return;
+		}
+
+		setTimeout2(cls, function() {
+			EMIT('reflow', self.name);
+		}, 10);
+
+		if (isHidden) {
+			if (!config.independent)
+				self.hideforce();
+			return;
+		}
+
+		if (self.template) {
+			var is = self.template.COMPILABLE();
+			self.find(cls2).append(self.template);
+			self.template = null;
+			is && COMPILE();
+		}
+
+		if (W.$$largeform_level < 1)
+			W.$$largeform_level = 1;
+
+		W.$$largeform_level++;
+
+		self.css('z-index', W.$$largeform_level * config.zindex);
+		self.rclass('hidden');
+
+		self.release(false);
+		config.scrolltop && self.scrollbar && self.scrollbar.scrollTop(0);
+
+		config.reload && self.EXEC(config.reload, self);
+		config.default && DEFAULT(self.makepath(config.default), true);
+
+		if (!isMOBILE && config.autofocus) {
+			setTimeout(function() {
+				self.find(typeof(config.autofocus) === 'string' ? config.autofocus : 'input[type="text"],select,textarea').eq(0).focus();
+			}, 1000);
+		}
+
+		self.resize();
+
+		setTimeout(function() {
+			self.rclass('invisible');
+			self.find(cls2).aclass(cls + '-animate');
+			if (!init && isMOBILE) {
+				$('body').aclass('hidden');
+				setTimeout(function() {
+					$('body').rclass('hidden');
+				}, 50);
+			}
+			init = true;
+		}, 300);
+
+		// Fixes a problem with freezing of scrolling in Chrome
+		setTimeout2(self.ID, function() {
+			self.css('z-index', (W.$$largeform_level * config.zindex) + 1);
+		}, 500);
+
+		config.closeesc && self.esc(true);
+	};
+});
+
+COMPONENT('fullform', 'zindex:12;padding:20;scrollbar:1;scrolltop:1;style:1', function(self, config, cls) {
+
+	var cls2 = '.' + cls;
+	var csspos = {};
+	var nav = false;
+	var init = false;
+
+	if (!W.$$fullform) {
+
+		W.$$fullform_level = W.$$fullform_level || 1;
+		W.$$fullform = true;
+
+		$(document).on('click', cls2 + '-button-close', function() {
+			SET($(this).attrd('path'), '');
+		});
+
+		var resize = function() {
+			setTimeout2(self.name, function() {
+				for (var i = 0; i < M.components.length; i++) {
+					var com = M.components[i];
+					if (com.name === 'fullform' && !HIDDEN(com.dom) && com.$ready && !com.$removed)
+						com.resize();
+				}
+			}, 200);
+		};
+
+		ON('resize2', resize);
+
+		$(document).on('click', cls2 + '-container', function(e) {
+
+			if (e.target === this) {
+				var com = $(this).component();
+				if (com && com.config.closeoutside) {
+					com.set('');
+					return;
+				}
+			}
+
+			var el = $(e.target);
+			if (el.hclass(cls + '-container') && !el.hclass(cls + '-style-2')) {
+				var form = el.find(cls2);
+				var c = cls + '-animate-click';
+				form.aclass(c);
+				setTimeout(function() {
+					form.rclass(c);
+				}, 300);
+			}
+		});
+	}
+
+	self.readonly();
+	self.submit = function() {
+		if (config.submit)
+			self.EXEC(config.submit, self.hide, self.element);
+		else
+			self.hide();
+	};
+
+	self.cancel = function() {
+		config.cancel && self.EXEC(config.cancel, self.hide);
+		self.hide();
+	};
+
+	self.hide = function() {
+		if (config.independent)
+			self.hideforce();
+		self.esc(false);
+		self.set('');
+	};
+
+	self.icon = function(value) {
+		var el = this.rclass2('fa');
+		value.icon && el.aclass(value.icon.indexOf(' ') === -1 ? ('fa fa-' + value.icon) : value.icon);
+	};
+
+	self.resize = function() {
+
+		if (self.hclass('hidden'))
+			return;
+
+		var padding = isMOBILE ? 0 : config.style === 1 ? config.padding : 0;
+		var ui = self.find(cls2);
+		var p = (config.style == 1 ? (padding * 2) : 0);
+
+		csspos.height = WH - (config.style == 1 ? (padding * 2) : padding);
+		csspos.top = padding;
+		ui.css(csspos);
+
+		var el = self.find(cls2 + '-title');
+		var th = el.height();
+
+		csspos = { height: csspos.height - th, width: WW - p };
+
+		if (nav)
+			csspos.height -= nav.height();
+
+		self.find(cls2 + '-body').css(csspos).parent().css({ width: WW - p });
+		self.scrollbar && self.scrollbar.resize();
+		self.element.SETTER('*', 'resize');
+	};
+
+	self.make = function() {
+
+		$(document.body).append('<div id="{0}" class="hidden {4}-container invisible"><div class="{4}"><div data-bind="@config__text span:value.title__change .{4}-icon:@icon" class="{4}-title"><button name="cancel" class="{4}-button-close{3}" data-path="{2}"><i class="fa fa-times"></i></button><i class="{4}-icon"></i><span></span></div><div class="{4}-body"></div></div>'.format(self.ID, config.width || 800, self.path, config.closebutton == false ? ' hidden' : '', cls));
+
+		var scr = self.find('> script');
+		self.template = scr.length ? scr.html().trim() : '';
+		scr.length && scr.remove();
+
+		var el = $('#' + self.ID);
+		var body = el.find(cls2 + '-body')[0];
+
+		while (self.dom.children.length) {
+			var child = self.dom.children[0];
+			if (child.tagName === 'NAV') {
+				nav = $(child);
+				body.parentNode.appendChild(child);
+			} else
+				body.appendChild(child);
+		}
+
+		self.rclass('hidden invisible');
+		self.replace(el, true);
+
+		if (config.scrollbar)
+			self.scrollbar = SCROLLBAR(self.find(cls2 + '-body'), { visibleY: config.visibleY, orientation: 'y' });
+
+		if (config.style === 2)
+			self.aclass(cls + '-style-2');
+
+		self.event('scroll', function() {
+			EMIT('scroll', self.name);
+			EMIT('reflow', self.name);
+		});
+
+		self.event('click', 'button[name]', function() {
+			var t = this;
+			switch (t.name) {
+				case 'submit':
+					self.submit(self.hide);
+					break;
+				case 'cancel':
+					!t.disabled && self[t.name](self.hide);
+					break;
+			}
+		});
+
+		config.enter && self.event('keydown', 'input', function(e) {
+			e.which === 13 && !self.find('button[name="submit"]')[0].disabled && setTimeout(self.submit, 800);
+		});
+	};
+
+	self.configure = function(key, value, init, prev) {
+		if (!init) {
+			switch (key) {
+				case 'width':
+					value !== prev && self.find(cls2).css('max-width', value + 'px');
+					break;
+				case 'closebutton':
+					self.find(cls2 + '-button-close').tclass('hidden', value !== true);
+					break;
+			}
+		}
+	};
+
+	self.esc = function(bind) {
+		if (bind) {
+			if (!self.$esc) {
+				self.$esc = true;
+				$(W).on('keydown', self.esc_keydown);
+			}
+		} else {
+			if (self.$esc) {
+				self.$esc = false;
+				$(W).off('keydown', self.esc_keydown);
+			}
+		}
+	};
+
+	self.esc_keydown = function(e) {
+		if (e.which === 27 && !e.isPropagationStopped()) {
+			var val = self.get();
+			if (!val || config.if === val) {
+				e.preventDefault();
+				e.stopPropagation();
+				self.hide();
+			}
+		}
+	};
+
+	self.hideforce = function() {
+		if (!self.hclass('hidden')) {
+			self.aclass('hidden');
+			self.release(true);
+			self.find(cls2).rclass(cls + '-animate');
+			W.$$fullform_level--;
+		}
+	};
+
+	var allowscrollbars = function() {
+		$('html').tclass(cls + '-noscroll', !!$(cls2 + '-container').not('.hidden').length);
+	};
+
+	self.setter = function(value) {
+
+		setTimeout2(self.name + '-noscroll', allowscrollbars, 50);
+
+		var isHidden = value !== config.if;
+
+		if (self.hclass('hidden') === isHidden) {
+			if (!isHidden) {
+				config.reload && self.EXEC(config.reload, self);
+				config.default && DEFAULT(self.makepath(config.default), true);
+				config.scrolltop && self.scrollbar && self.scrollbar.scrollTop(0);
+			}
+			return;
+		}
+
+		setTimeout2(cls, function() {
+			EMIT('reflow', self.name);
+		}, 10);
+
+		if (isHidden) {
+			if (!config.independent)
+				self.hideforce();
+			return;
+		}
+
+		if (self.template) {
+			var is = self.template.COMPILABLE();
+			self.find(cls2).append(self.template);
+			self.template = null;
+			is && COMPILE();
+		}
+
+		if (W.$$fullform_level < 1)
+			W.$$fullform_level = 1;
+
+		W.$$fullform_level++;
+
+		self.css('z-index', W.$$fullform_level * config.zindex);
+		self.rclass('hidden');
+
+		self.release(false);
+		config.scrolltop && self.scrollbar && self.scrollbar.scrollTop(0);
+
+		config.reload && self.EXEC(config.reload, self);
+		config.default && DEFAULT(self.makepath(config.default), true);
+
+		if (!isMOBILE && config.autofocus) {
+			setTimeout(function() {
+				self.find(typeof(config.autofocus) === 'string' ? config.autofocus : 'input[type="text"],select,textarea').eq(0).focus();
+			}, 1000);
+		}
+
+		self.resize();
+
+		setTimeout(function() {
+			self.rclass('invisible');
+			self.find(cls2).aclass(cls + '-animate');
+			if (!init && isMOBILE) {
+				$('body').aclass('hidden');
+				setTimeout(function() {
+					$('body').rclass('hidden');
+				}, 50);
+			}
+			init = true;
+		}, 300);
+
+		// Fixes a problem with freezing of scrolling in Chrome
+		setTimeout2(self.ID, function() {
+			self.css('z-index', (W.$$fullform_level * config.zindex) + 1);
+		}, 500);
+
+		config.closeesc && self.esc(true);
+	};
+});
+
+COMPONENT('miniform', 'zindex:12', function(self, config, cls) {
+
+	var cls2 = '.' + cls;
+	var csspos = {};
+
+	if (!W.$$miniform) {
+
+		W.$$miniform_level = W.$$miniform_level || 1;
+		W.$$miniform = true;
+
+		$(document).on('click', cls2 + '-button-close', function() {
+			SET($(this).attrd('path'), '');
+		});
+
+		var resize = function() {
+			setTimeout2(self.name, function() {
+				for (var i = 0; i < M.components.length; i++) {
+					var com = M.components[i];
+					if (com.name === 'miniform' && !HIDDEN(com.dom) && com.$ready && !com.$removed)
+						com.resize();
+				}
+			}, 200);
+		};
+
+		ON('resize2', resize);
+
+		$(document).on('click', cls2 + '-container', function(e) {
+
+			if (e.target === this) {
+				var com = $(this).component();
+				if (com && com.config.closeoutside) {
+					com.set('');
+					return;
+				}
+			}
+
+			var el = $(e.target);
+
+			if (el.hclass(cls + '-container-cell')) {
+				var form = $(this).find(cls2);
+				var c = cls + '-animate-click';
+				form.aclass(c).rclass(c, 300);
+				var com = el.parent().component();
+				if (com && com.config.closeoutside)
+					com.set('');
+			}
+		});
+	}
+
+	self.readonly();
+	self.submit = function() {
+		if (config.submit)
+			self.EXEC(config.submit, self.hide, self.element);
+		else
+			self.hide();
+	};
+
+	self.cancel = function() {
+		config.cancel && self.EXEC(config.cancel, self.hide);
+		self.hide();
+	};
+
+	self.hide = function() {
+		if (config.independent)
+			self.hideforce();
+		self.esc(false);
+		self.set('');
+	};
+
+	self.esc = function(bind) {
+		if (bind) {
+			if (!self.$esc) {
+				self.$esc = true;
+				$(W).on('keydown', self.esc_keydown);
+			}
+		} else {
+			if (self.$esc) {
+				self.$esc = false;
+				$(W).off('keydown', self.esc_keydown);
+			}
+		}
+	};
+
+	self.esc_keydown = function(e) {
+		if (e.which === 27 && !e.isPropagationStopped()) {
+			var val = self.get();
+			if (!val || config.if === val) {
+				e.preventDefault();
+				e.stopPropagation();
+				self.hide();
+			}
+		}
+	};
+
+	self.hideforce = function() {
+		if (!self.hclass('hidden')) {
+			self.aclass('hidden');
+			self.release(true);
+			self.find(cls2).rclass(cls + '-animate');
+			W.$$miniform_level--;
+		}
+	};
+
+	self.icon = function(value) {
+		var el = this.rclass2('fa');
+		value.icon && el.aclass(value.icon.indexOf(' ') === -1 ? ('fa fa-' + value.icon) : value.icon);
+		this.tclass('hidden', !value.icon);
+	};
+
+	self.resize = function() {
+
+		if (!config.center || self.hclass('hidden'))
+			return;
+
+		var ui = self.find(cls2);
+		var fh = ui.innerHeight();
+		var wh = WH;
+		var r = (wh / 2) - (fh / 2);
+		csspos.marginTop = (r > 30 ? (r - 15) : 20) + 'px';
+		ui.css(csspos);
+	};
+
+	self.make = function() {
+
+		$(document.body).append('<div id="{0}" class="hidden {4}-container invisible"><div class="{4}-container-table"><div class="{4}-container-cell"><div class="{4}" style="max-width:{1}px"><div data-bind="@config__text span:value.title__change .{4}-icon:@icon" class="{4}-title"><button name="cancel" class="{4}-button-close{3}" data-path="{2}"><i class="fa fa-times"></i></button><i class="{4}-icon"></i><span></span></div></div></div></div>'.format(self.ID, config.width || 800, self.path, config.closebutton == false ? ' hidden' : '', cls));
+
+		var scr = self.find('> script');
+		self.template = scr.length ? scr.html().trim() : '';
+		if (scr.length)
+			scr.remove();
+
+		var el = $('#' + self.ID);
+		var body = el.find(cls2)[0];
+
+		while (self.dom.children.length)
+			body.appendChild(self.dom.children[0]);
+
+		self.rclass('hidden invisible');
+		self.replace(el, true);
+
+		self.event('scroll', function() {
+			EMIT('scroll', self.name);
+			EMIT('reflow', self.name);
+		});
+
+		self.event('click', 'button[name]', function() {
+			var t = this;
+			switch (t.name) {
+				case 'submit':
+					self.submit(self.hide);
+					break;
+				case 'cancel':
+					!t.disabled && self[t.name](self.hide);
+					break;
+			}
+		});
+
+		config.enter && self.event('keydown', 'input', function(e) {
+			e.which === 13 && !self.find('button[name="submit"]')[0].disabled && setTimeout(self.submit, 800);
+		});
+	};
+
+	self.configure = function(key, value, init, prev) {
+		if (!init) {
+			switch (key) {
+				case 'width':
+					value !== prev && self.find(cls2).css('max-width', value + 'px');
+					break;
+				case 'closebutton':
+					self.find(cls2 + '-button-close').tclass('hidden', value !== true);
+					break;
+			}
+		}
+	};
+
+	self.setter = function(value) {
+
+		setTimeout2(cls + '-noscroll', function() {
+			$('html').tclass(cls + '-noscroll', !!$(cls2 + '-container').not('.hidden').length);
+		}, 50);
+
+		var isHidden = value !== config.if;
+
+		if (self.hclass('hidden') === isHidden) {
+			if (!isHidden) {
+				config.reload && self.EXEC(config.reload, self);
+				config.default && DEFAULT(self.makepath(config.default), true);
+			}
+			return;
+		}
+
+		setTimeout2(cls, function() {
+			EMIT('reflow', self.name);
+		}, 10);
+
+		if (isHidden) {
+			if (!config.independent)
+				self.hideforce();
+			return;
+		}
+
+		if (self.template) {
+			var is = self.template.COMPILABLE();
+			self.find(cls2).append(self.template);
+			self.template = null;
+			is && COMPILE();
+		}
+
+		if (W.$$miniform_level < 1)
+			W.$$miniform_level = 1;
+
+		W.$$miniform_level++;
+
+		self.css('z-index', W.$$miniform_level * config.zindex);
+		self.rclass('hidden');
+
+		self.resize();
+		self.release(false);
+
+		config.reload && self.EXEC(config.reload, self);
+		config.default && DEFAULT(self.makepath(config.default), true);
+
+		if (!isMOBILE && config.autofocus) {
+			setTimeout(function() {
+				self.find(typeof(config.autofocus) === 'string' ? config.autofocus : 'input[type="text"],select,textarea').eq(0).focus();
+			}, 1000);
+		}
+
+		setTimeout(function() {
+			self.rclass('invisible');
+			self.find(cls2).aclass(cls + '-animate');
+		}, 300);
+
+		// Fixes a problem with freezing of scrolling in Chrome
+		setTimeout2(self.ID, function() {
+			self.css('z-index', (W.$$miniform_level * config.zindex) + 1);
+		}, 500);
+
+		config.closeesc && self.esc(true);
+	};
+});
+
+COMPONENT('detail', 'datetimeformat:yyyy-MM-dd HH:mm;dateformat:yyyy-MM-dd;timeformat:HH:mm;defaultgroup:Default', function(self, config, cls) {
+
+	var cls2 = '.' + cls;
+	var types = {};
+	var container;
+	var mapping;
+
+	self.make = function() {
+
+		self.aclass(cls + ' ' + cls + '-style-' + (config.style || 1) + (config.small ? (' ' + cls + '-small') : ''));
+
+		var scr = self.find('script');
+		if (scr.length) {
+			mapping = (new Function('return ' + scr.html().trim()))();
+			for (var i = 0; i < mapping.length; i++) {
+				var item = mapping[i];
+				if (item.show)
+					item.show = FN(item.show);
+			}
+		}
+
+		self.html('<div class="{0}-container"></div>'.format(cls));
+		container = self.find(cls2 + '-container');
+
+		var keys = Object.keys(types);
+		for (var i = 0; i < keys.length; i++) {
+			var key = keys[i];
+			types[key].init && types[key].init();
+		}
+	};
+
+	self.nocompile();
+	self.bindvisible();
+
+	self.mapvalue = function(item) {
+		var val = item.path ? item.path.indexOf('.') === -1 ? item.value[item.path] : GET(item.path, item.value) : item.value;
+		return val === false || val === true ? val : val == null || val === '' ? (item.empty || DEF.empty) : val;
+	};
+
+	self.register = function(name, init, render) {
+		types[name] = {};
+		types[name].init = init;
+		types[name].render = render;
+		init(self);
+	};
+
+	types.template = {};
+	types.template.init = NOOP;
+	types.template.render = function(item, next) {
+		var value = self.mapvalue(item);
+		next('<div class="{0}-template">{1}</div>'.format(cls, Tangular.render(item.template, { value: value, item: item.value })));
+	};
+
+	types.string = {};
+	types.string.init = NOOP;
+	types.string.render = function(item, next) {
+		var value = self.mapvalue(item);
+		next('<div class="{0}-string">{1}</div>'.format(cls, Thelpers.encode(value)));
+	};
+
+	types.password = {};
+	types.password.init = function() {
+		self.event('click', cls2 + '-password', function() {
+			var el = $(this);
+			var html = el.html();
+
+			if (html.substring(0, DEF.empty.length) === DEF.empty) {
+				// no value
+				return;
+			}
+
+			var tmp = el.attrd('value');
+			el.attrd('value', html);
+			el.html(tmp);
+		});
+	};
+	types.password.render = function(item, next) {
+		var value = self.mapvalue(item);
+		next('<div class="{0}-password" data-value="{1}">{2}</div>'.format(cls, Thelpers.encode(value), value ? '************' : DEF.empty));
+	};
+
+	types.number = {};
+	types.number.init = NOOP;
+	types.number.render = function(item, next) {
+		var value = self.mapvalue(item);
+		var format = item.format || config.numberformat;
+		value = format ? value.format(format) : value;
+		next('<div class="{0}-number">{1}</div>'.format(cls, Thelpers.encode(value + '')));
+	};
+
+	types.date = {};
+	types.date.init = NOOP;
+	types.date.render = function(item, next) {
+		var value = self.mapvalue(item);
+		next('<div class="{0}-date">{1}</div>'.format(cls, value ? value.format(item.format || config.dateformat) : ''));
+	};
+
+	types.bool = {};
+	types.bool.init = NOOP;
+	types.bool.render = function(item, next) {
+		var value = self.mapvalue(item);
+		next('<div class="{0}-bool{1}"><span><i class="fa fa-check"></i></span></div>'.format(cls, value ? ' checked' : ''));
+	};
+
+	types.list = {};
+	types.list.init = NOOP;
+	types.list.render = function(item, next) {
+		var value = self.mapvalue(item);
+		var template = '<div class="{0}-list"><span>{1}</span></div>';
+		if (item.detail) {
+			AJAX('GET ' + item.detail.format(encodeURIComponent(value)), function(response) {
+				next(template.format(cls, response[item.dirkey || 'name'] || item.placeholder || DEF.empty));
+			});
+		} else {
+			var arr = typeof(item.items) === 'string' ? GET(item.items) : item.items;
+			var m = (arr || EMPTYARRAY).findValue(item.dirvalue || 'id', value, item.dirkey || 'name', item.placeholder || DEF.empty);
+			next(template.format(cls, m));
+		}
+	};
+
+	types.color = {};
+	types.color.init = NOOP;
+	types.color.render = function(item, next) {
+		var value = self.mapvalue(item);
+		next('<div class="{0}-color"><span><b{1}>&nbsp;</b></span></div>'.format(cls, value ? (' style="background-color:' + value + '"') : ''));
+	};
+
+	types.fontawesome = {};
+	types.fontawesome.init = NOOP;
+	types.fontawesome.render = function(item, next) {
+		var value = self.mapvalue(item);
+		next('<div class="{0}-fontawesome"><i class="{1}"></i></div>'.format(cls, value || ''));
+	};
+
+	types.emoji = {};
+	types.emoji.init = NOOP;
+	types.emoji.render = function(item, next) {
+		var value = self.mapvalue(item);
+		next('<div class="{0}-emoji">{1}</div>'.format(cls, value || DEF.empty));
+	};
+
+	self.render = function(item, index) {
+		var type = types[item.type === 'boolean' ? 'bool' : item.type];
+		var c = cls;
+
+		var meta = { label: item.label || item.name };
+
+		if (item.icon) {
+			var tmp = item.icon;
+			if (tmp.indexOf(' ') === -1)
+				tmp = 'fa fa-' + tmp;
+			meta.icon = '<i class="{0}"></i>'.format(tmp);
+		} else
+			meta.icon = '';
+
+		var el = $('<div class="{2}-item{3}" data-index="{1}"><div class="{0}-key">{{ icon }}{{ label }}</div><div class="{0}-value">&nbsp;</div></div>'.format(cls, index, c, item.required ? (' ' + cls + '-required') : '').arg(meta));
+		type.render(item, function(html) {
+			if (item.note)
+				html += '<div class="{0}-note">{1}</div>'.format(cls, item.note);
+			el.find(cls2 + '-value').html(html);
+		});
+
+		return el;
+	};
+
+	self.setter = function(value) {
+
+		if (!value)
+			value = EMPTYARRAY;
+
+		var raw;
+
+		if (mapping && value && value !== EMPTYARRAY) {
+			raw = value;
+			for (var i = 0; i < mapping.length; i++) {
+				var m = mapping[i];
+				m.value = raw;
+			}
+			value = mapping;
+		}
+
+		container.empty();
+
+		var groups = {};
+
+		for (var i = 0; i < value.length; i++) {
+			var item = value[i];
+			if (raw && item.show && !item.show(raw))
+				continue;
+
+			var g = item.group || config.defaultgroup;
+			if (!groups[g])
+				groups[g] = { html: [] };
+			groups[g].html.push(self.render(item, i));
+		}
+
+		var keys = Object.keys(groups);
+		for (var i = 0; i < keys.length; i++) {
+			var key = keys[i];
+			var group = groups[key];
+			var hash = 'g' + HASH(key).toString(36);
+			var el = $(('<div class="{0}-group' + (key.length > 1 ? '' : ' {0}-group-nolabel') + '" data-id="{2}">' + (key.length > 1 ? '<label>{1}</label>' : '') + '<section></section></div>').format(cls, key, hash));
+			var section = el.find('section');
+			for (var j = 0; j < group.html.length; j++)
+				section.append(group.html[j]);
+			container.append(el);
+		}
+
 	};
 
 });
